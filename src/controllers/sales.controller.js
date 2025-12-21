@@ -66,3 +66,22 @@ exports.createSale = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+exports.getTodaySales = async (req, res) => {
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+
+    const sales = await Sale.find({
+      createdAt: { $gte: start, $lte: end },
+    }).populate('customerId', 'name');
+
+    res.json(sales);
+  } catch (error) {
+    console.error('GET TODAY SALES ERROR:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
