@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getSummary } = require('../controllers/report.controller');
+const {
+  getLabourBoard,
+} = require('../controllers/labourBoard.controller');
 const { authMiddleware, ownerOnly } = require('../middleware/auth');
 
-router.get('/summary', authMiddleware, ownerOnly, getSummary);
+router.get('/', authMiddleware, ownerOnly, getLabourBoard);
 
 module.exports = router;

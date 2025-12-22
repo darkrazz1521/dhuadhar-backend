@@ -1,13 +1,14 @@
 const mongoose = require('mongoose');
 
-const electricityExpenseSchema = new mongoose.Schema(
+const labourPaymentSchema = new mongoose.Schema(
   {
-    month: {
-      type: String, // YYYY-MM
+    labourId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Labour',
       required: true,
     },
-    units: {
-      type: Number,
+    month: {
+      type: String, // YYYY-MM
       required: true,
     },
     amount: {
@@ -27,6 +28,6 @@ const electricityExpenseSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model(
-  'ElectricityExpense',
-  electricityExpenseSchema
+  'LabourPayment',
+  labourPaymentSchema
 );

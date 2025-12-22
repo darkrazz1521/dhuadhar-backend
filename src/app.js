@@ -12,6 +12,26 @@ const creditRoutes = require('./routes/credit.routes');
 const landRoutes = require('./routes/land.routes');
 const coalRoutes = require('./routes/coal.routes');
 const dieselRoutes = require('./routes/diesel.routes');
+const electricityRoutes = require('./routes/electricity.routes');
+const labourRoutes = require('./routes/labour.routes');
+const attendanceRoutes = require('./routes/attendance.routes');
+const paymentRoutes = require('./routes/payment.routes');
+const labourBoardRoutes = require('./routes/labourBoard.routes');
+const productionRoutes = require('./routes/production.routes');
+const dashboardRoutes = require('./routes/dashboard.routes');
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -32,6 +52,13 @@ app.use('/api/credit', creditRoutes);
 app.use('/api/land', landRoutes);
 app.use('/api/coal', coalRoutes);
 app.use('/api/diesel', dieselRoutes);
+app.use('/api/electricity', electricityRoutes);
+app.use('/api/labour', labourRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/labour-board', labourBoardRoutes);
+app.use('/api/production', productionRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // health check
 app.get('/', (req, res) => {
