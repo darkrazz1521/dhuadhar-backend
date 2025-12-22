@@ -11,6 +11,9 @@ const advanceRoutes = require('./routes/advance.routes');
 const creditRoutes = require('./routes/credit.routes');
 const landRoutes = require('./routes/land.routes');
 const coalRoutes = require('./routes/coal.routes');
+const dieselRoutes = require('./routes/diesel.routes');
+
+
 
 
 
@@ -28,6 +31,7 @@ app.use('/api/advance', advanceRoutes);
 app.use('/api/credit', creditRoutes);
 app.use('/api/land', landRoutes);
 app.use('/api/coal', coalRoutes);
+app.use('/api/diesel', dieselRoutes);
 
 // health check
 app.get('/', (req, res) => {
