@@ -59,6 +59,8 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/labour-board', labourBoardRoutes);
 app.use('/api/production', productionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/customers', require('./routes/customer.routes'));
+
 
 // health check
 app.get('/', (req, res) => {
