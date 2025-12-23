@@ -8,9 +8,10 @@ exports.getDailyAttendance = async (req, res) => {
 
     // 1️⃣ Active DAILY labour
     const labours = await Labour.find({
-      type: 'daily',
-      isActive: true,
-    });
+  category: 'daily',
+  isActive: true,
+});
+
 
     // 2️⃣ Existing attendance
     const records = await LabourAttendance.find({ date });
