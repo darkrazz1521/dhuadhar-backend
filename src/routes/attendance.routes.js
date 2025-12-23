@@ -6,7 +6,8 @@ const {
 } = require('../controllers/attendance.controller');
 const { authMiddleware, ownerOnly } = require('../middleware/auth');
 
-router.get('/', authMiddleware, ownerOnly, getDailyAttendance);
-router.post('/', authMiddleware, ownerOnly, saveAttendance);
+router.get('/daily/:date', authMiddleware, ownerOnly, getDailyAttendance);
+router.post('/daily/:date', authMiddleware, ownerOnly, saveAttendance);
+
 
 module.exports = router;
