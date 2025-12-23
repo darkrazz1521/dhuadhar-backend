@@ -2,18 +2,30 @@ const Labour = require('../models/Labour');
 const LabourAttendance = require('../models/LabourAttendance');
 const LabourPayment = require('../models/LabourPayment');
 
+/**
+ * --------------------------------------------------
+ * LABOUR BOARD SUMMARY (OWNER VIEW)
+ * --------------------------------------------------
+ * Covers:
+ * - Total active labour
+ * - Daily wages (current month)
+ * - Salary expected / paid / pending
+ * - Total labour cost
+ * --------------------------------------------------
+ */
 exports.getLabourBoard = async (req, res) => {
   try {
-    const today = new Date().toISOString().substring(0, 10);
-    const month = today.substring(0, 7);
+    /* ---------------- DATE CONTEXT ---------------- */
+    const today = new Date().toISOString().substring(0, 10); // YYYY-MM-DD
+    const month = today.substring(0, 7); // YYYY-MM
 
-    // TOTAL ACTIVE LABOUR
+    /* ---------------- TOTAL ACTIVE LABOUR ---------------- */
     const totalLabour = await Labour.countDocuments({
       isActive: true,
     });
 
-    // DAILY LABOUR WAGES (MONTH)
-    const dailyWages = await LabourAttendance.aggregate([
+    /* ---------------- DAILY LABOUR WAGES (MONTH) ---------------- */
+    const dailyWagesAgg = await LabourAttendance.aggregate([
       {
         $match: {
           date: { $regex: `^${month}` },
@@ -28,7 +40,9 @@ exports.getLabourBoard = async (req, res) => {
       },
     ]);
 
-    // SALARY LABOUR
+    const dailyWages = dailyWagesAgg[0]?.total || 0;
+
+    /* ---------------- SALARY LABOUR (FIXED MONTHLY) ---------------- */
     const salaryLabours = await Labour.find({
       type: { $in: ['munshi', 'driver', 'cook'] },
       isActive: true,
@@ -39,7 +53,7 @@ exports.getLabourBoard = async (req, res) => {
       0
     );
 
-    const paidSalary = await LabourPayment.aggregate([
+    const paidSalaryAgg = await LabourPayment.aggregate([
       {
         $match: { month },
       },
@@ -51,27 +65,28 @@ exports.getLabourBoard = async (req, res) => {
       },
     ]);
 
-    const salaryPaid = paidSalary[0]?.total || 0;
-    const salaryPending = Math.max(
-      expectedSalary - salaryPaid,
-      0
-    );
+    const salaryPaid = paidSalaryAgg[0]?.total || 0;
+    const salaryPending = Math.max(expectedSalary - salaryPaid, 0);
 
-    const totalLabourCost =
-      (dailyWages[0]?.total || 0) + expectedSalary;
+    /* ---------------- TOTAL LABOUR COST ---------------- */
+    const totalLabourCost = dailyWages + expectedSalary;
 
+    /* ---------------- RESPONSE ---------------- */
     res.json({
       totalLabour,
-      dailyWages: dailyWages[0]?.total || 0,
+
+      dailyWages,
+
       salary: {
         expected: expectedSalary,
         paid: salaryPaid,
         pending: salaryPending,
       },
+
       totalLabourCost,
     });
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error('LABOUR BOARD ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

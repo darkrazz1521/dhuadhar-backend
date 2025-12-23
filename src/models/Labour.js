@@ -6,25 +6,38 @@ const labourSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
     mobile: {
       type: String,
-      default: '',
+      required: true,
+      unique: true, // ✅ TC-LAB-01
     },
-    type: {
+
+    // DAILY / SALARY / PRODUCTION
+    category: {
       type: String,
-      enum: [
-        'daily',
-        'moulder',
-        'loader',
-        'munshi',
-        'driver',
-        'cook',
-      ],
+      enum: ['daily', 'salary', 'production'],
       required: true,
     },
 
-    // 🔥 NEW FIELD
+    // Moulder / Loader / General / Driver / Cook / Munshi
+    workType: {
+      type: String,
+      required: true,
+    },
+
+    // Payment fields (only one used depending on category)
+    dailyRate: {
+      type: Number,
+      default: 0,
+    },
+
     monthlySalary: {
+      type: Number,
+      default: 0,
+    },
+
+    productionRate: {
       type: Number,
       default: 0,
     },
