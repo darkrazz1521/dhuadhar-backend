@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const advanceSchema = new mongoose.Schema(
   {
+    // ✅ CUSTOMER RELATION (ID-BASED)
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Customer',
@@ -41,11 +42,13 @@ const advanceSchema = new mongoose.Schema(
       required: true,
     },
 
+    // 💰 Advance paid
     advance: {
       type: Number,
       required: true,
     },
 
+    // 💸 Remaining amount
     remaining: {
       type: Number,
       required: true,

@@ -3,23 +3,38 @@ const Customer = require('../models/Customer');
 const Credit = require('../models/Credit');
 const Price = require('../models/Price');
 
+/* -------------------------------------------------------
+ * CREATE SALE (customerId based – backward compatible)
+ * ----------------------------------------------------- */
 exports.createSale = async (req, res) => {
   try {
-    const { customerName, category, quantity, paid } = req.body;
+    const { customerId, customerName, category, quantity, paid } = req.body;
 
-    if (!customerName || !category || !quantity) {
-      return res
-        .status(400)
-        .json({ message: 'Missing required fields' });
+    if (!category || !quantity) {
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // 1️⃣ Find or create customer
-    let customer = await Customer.findOne({ name: customerName });
-    if (!customer) {
-      customer = await Customer.create({ name: customerName });
+    /* ---------------- CUSTOMER RESOLUTION ---------------- */
+    let customer = null;
+
+    // ✅ NEW FLOW (preferred)
+    if (customerId) {
+      customer = await Customer.findById(customerId);
+      if (!customer) {
+        return res.status(400).json({ message: 'Invalid customer' });
+      }
+    }
+    // ⚠️ OLD FLOW (temporary compatibility)
+    else if (customerName) {
+      customer = await Customer.findOne({ name: customerName });
+      if (!customer) {
+        customer = await Customer.create({ name: customerName });
+      }
+    } else {
+      return res.status(400).json({ message: 'Customer required' });
     }
 
-    // 2️⃣ Get price
+    /* ---------------- PRICE ---------------- */
     const price = await Price.findOne({ category });
     if (!price) {
       return res
@@ -32,7 +47,7 @@ exports.createSale = async (req, res) => {
     const paidAmount = paid || 0;
     const due = Math.max(total - paidAmount, 0);
 
-    // 3️⃣ Create sale
+    /* ---------------- CREATE SALE ---------------- */
     await Sale.create({
       customerId: customer._id,
       category,
@@ -43,7 +58,7 @@ exports.createSale = async (req, res) => {
       due,
     });
 
-    // 4️⃣ CREDIT LOGIC (🔥 THIS WAS MISSING / BROKEN)
+    /* ---------------- CREDIT UPDATE ---------------- */
     if (due > 0) {
       let credit = await Credit.findOne({
         customerId: customer._id,
@@ -60,13 +75,16 @@ exports.createSale = async (req, res) => {
       }
     }
 
-    res.status(201).json({ message: 'Sale created' });
+    res.status(201).json({ message: 'Sale created successfully' });
   } catch (error) {
     console.error('SALE ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
+/* -------------------------------------------------------
+ * GET TODAY SALES (Sales Board)
+ * ----------------------------------------------------- */
 exports.getTodaySales = async (req, res) => {
   try {
     const start = new Date();
@@ -77,7 +95,9 @@ exports.getTodaySales = async (req, res) => {
 
     const sales = await Sale.find({
       createdAt: { $gte: start, $lte: end },
-    }).populate('customerId', 'name');
+    })
+      // ✅ UI STANDARD POPULATE (FINAL)
+      .populate('customerId', 'name mobile address');
 
     res.json(sales);
   } catch (error) {

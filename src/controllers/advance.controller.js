@@ -1,5 +1,4 @@
 const Advance = require('../models/Advance');
-const Customer = require('../models/Customer');
 const Price = require('../models/Price');
 const Sale = require('../models/Sale');
 const Credit = require('../models/Credit');
@@ -9,19 +8,13 @@ const Credit = require('../models/Credit');
 -------------------------------------------------- */
 exports.createAdvance = async (req, res) => {
   try {
-    const { customerName, category, quantity, advance } = req.body;
+    const { customerId, category, quantity, advance } = req.body;
 
-    if (!customerName || !category || !quantity || advance == null) {
+    if (!customerId || !category || !quantity || advance == null) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // 1️⃣ Find or create customer
-    let customer = await Customer.findOne({ name: customerName });
-    if (!customer) {
-      customer = await Customer.create({ name: customerName });
-    }
-
-    // 2️⃣ Get owner-set price
+    // 1️⃣ Get owner-set price
     const price = await Price.findOne({ category });
     if (!price) {
       return res
@@ -33,14 +26,14 @@ exports.createAdvance = async (req, res) => {
     const total = rate * quantity;
     const remaining = Math.max(total - advance, 0);
 
-    // 3️⃣ Save advance order
+    // 2️⃣ Save advance order
     const order = await Advance.create({
-      customerId: customer._id,
+      customerId,
       category,
       rate,
       quantity,
-      remainingQuantity: quantity, // 🧱 NEW
-      deliveredQuantity: 0,         // 🧱 NEW
+      remainingQuantity: quantity,
+      deliveredQuantity: 0,
       total,
       advance,
       remaining,
@@ -52,22 +45,24 @@ exports.createAdvance = async (req, res) => {
       order,
     });
   } catch (error) {
-    console.error(error);
+    console.error('CREATE ADVANCE ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 /* --------------------------------------------------
-   GET ALL ADVANCE ORDERS
+   GET ALL ADVANCE ORDERS (UI LIST)
 -------------------------------------------------- */
 exports.getAdvances = async (req, res) => {
   try {
     const advances = await Advance.find()
-      .populate('customerId', 'name')
+      // ✅ UI STANDARD POPULATE (FINAL)
+      .populate('customerId', 'name mobile address')
       .sort({ createdAt: -1 });
 
     res.json(advances);
   } catch (error) {
+    console.error('GET ADVANCES ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -99,7 +94,7 @@ exports.convertToSale = async (req, res) => {
       due: advance.remaining,
     });
 
-    // 2️⃣ Update credit
+    // 2️⃣ Update credit (if due)
     if (advance.remaining > 0) {
       let credit = await Credit.findOne({
         customerId: advance.customerId,
@@ -119,12 +114,14 @@ exports.convertToSale = async (req, res) => {
     // 3️⃣ Update advance
     advance.deliveredQuantity = advance.quantity;
     advance.remainingQuantity = 0;
+    advance.advance = 0;
+    advance.remaining = 0;
     advance.status = 'delivered';
     await advance.save();
 
     res.json({ message: 'Advance fully delivered' });
   } catch (error) {
-    console.error(error);
+    console.error('CONVERT ADVANCE ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -152,7 +149,7 @@ exports.partialDeliver = async (req, res) => {
     // 1️⃣ Calculate sale
     const saleTotal = deliverQty * advance.rate;
 
-    // 2️⃣ Adjust advance payment
+    // 2️⃣ Use advance money first
     const paidFromAdvance = Math.min(
       advance.advance,
       saleTotal
@@ -173,6 +170,7 @@ exports.partialDeliver = async (req, res) => {
 
     // 4️⃣ Reduce advance money
     advance.advance -= paidFromAdvance;
+    advance.remaining -= paidFromAdvance;
 
     // 5️⃣ Update quantities
     advance.remainingQuantity -= deliverQty;
@@ -204,8 +202,8 @@ exports.partialDeliver = async (req, res) => {
     await advance.save();
 
     res.json({ message: 'Partial delivery recorded' });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error('PARTIAL DELIVERY ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

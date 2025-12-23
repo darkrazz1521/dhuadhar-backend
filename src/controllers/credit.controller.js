@@ -1,5 +1,4 @@
 const Credit = require('../models/Credit');
-const Customer = require('../models/Customer');
 const CreditPayment = require('../models/CreditPayment');
 
 /**
@@ -11,12 +10,13 @@ const CreditPayment = require('../models/CreditPayment');
 exports.getCredits = async (req, res) => {
   try {
     const credits = await Credit.find()
-      .populate('customerId', 'name')
+      // ✅ UI STANDARD POPULATE (FINAL)
+      .populate('customerId', 'name mobile address')
       .sort({ totalDue: -1 });
 
     res.json(credits);
   } catch (error) {
-    console.error(error);
+    console.error('GET CREDITS ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -31,7 +31,8 @@ exports.getCreditByCustomer = async (req, res) => {
     const { customerId } = req.params;
 
     const credit = await Credit.findOne({ customerId })
-      .populate('customerId', 'name');
+      // ✅ UI STANDARD POPULATE (FINAL)
+      .populate('customerId', 'name mobile address');
 
     if (!credit) {
       return res.status(404).json({ message: 'No credit found' });
@@ -39,6 +40,7 @@ exports.getCreditByCustomer = async (req, res) => {
 
     res.json(credit);
   } catch (error) {
+    console.error('GET CREDIT BY CUSTOMER ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -57,12 +59,13 @@ exports.clearCredit = async (req, res) => {
       return res.status(400).json({ message: 'Invalid fields' });
     }
 
-    const credit = await Credit.findOne({ customerId });
+    let credit = await Credit.findOne({ customerId });
+
     if (!credit) {
       return res.status(404).json({ message: 'Credit not found' });
     }
 
-    // Update credit
+    // ✅ Reduce credit safely
     credit.totalDue = Math.max(credit.totalDue - amount, 0);
     await credit.save();
 
@@ -74,11 +77,11 @@ exports.clearCredit = async (req, res) => {
     });
 
     res.json({
-      message: 'Credit updated',
+      message: 'Credit updated successfully',
       credit,
     });
   } catch (error) {
-    console.error(error);
+    console.error('CLEAR CREDIT ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -96,7 +99,8 @@ exports.getCreditPayments = async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json(payments);
-  } catch (err) {
+  } catch (error) {
+    console.error('GET CREDIT PAYMENTS ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
