@@ -4,9 +4,9 @@ const router = express.Router();
 const {
   createSale,
   getTodaySales,
+  getSalesByCustomer,
+  getSaleDetail,
 } = require('../controllers/sales.controller');
-
-const { getSaleDetail } = require('../controllers/sales.controller');
 
 const { authMiddleware } = require('../middleware/auth');
 
@@ -24,17 +24,18 @@ router.get(
   getTodaySales
 );
 
+// GET SALES BY CUSTOMER
 router.get(
   '/customer/:customerId',
   authMiddleware,
   getSalesByCustomer
 );
 
+// GET SALE FULL DETAIL
 router.get(
   '/:saleId/detail',
   authMiddleware,
   getSaleDetail
 );
-
 
 module.exports = router;
