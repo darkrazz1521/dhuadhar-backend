@@ -9,6 +9,12 @@ const saleSchema = new mongoose.Schema(
       required: true,
     },
 
+    advanceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Advance',
+    default: null,
+  },
+
     // ⚠️ TEMP – KEEP FOR BACKWARD COMPATIBILITY
     customerName: {
       type: String,

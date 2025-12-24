@@ -60,6 +60,10 @@ const advanceSchema = new mongoose.Schema(
       enum: ['pending', 'partial', 'delivered'],
       default: 'pending',
     },
+    sales: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Sale',
+  }],
   },
   { timestamps: true }
 );

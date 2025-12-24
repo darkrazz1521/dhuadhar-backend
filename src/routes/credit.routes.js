@@ -5,7 +5,8 @@ const {
   getCredits,
   getCreditByCustomer,
   clearCredit,
-  getCreditPayments, // ✅ NEW
+  getCreditPayments,
+  paySale, // ✅ NEW
 } = require('../controllers/credit.controller');
 
 const {
@@ -34,6 +35,16 @@ router.get(
   authMiddleware,
   getCreditPayments
 );
+// ------------------------------------
+// Pay specific sale (OWNER ONLY)
+// ------------------------------------
+router.post(
+  '/pay-sale',
+  authMiddleware,
+  ownerOnly,
+  paySale
+);
+
 
 // ------------------------------------
 // Clear / adjust credit (OWNER ONLY)

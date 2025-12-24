@@ -84,15 +84,20 @@ exports.convertToSale = async (req, res) => {
     }
 
     // 1️⃣ Create sale
-    await Sale.create({
-      customerId: advance.customerId,
-      category: advance.category,
-      rate: advance.rate,
-      quantity: advance.remainingQuantity,
-      total: advance.remainingQuantity * advance.rate,
-      paid: advance.advance,
-      due: advance.remaining,
-    });
+    const sale = await Sale.create({
+  customerId: advance.customerId,
+  advanceId: advance._id, // 🔥 LINK
+  category: advance.category,
+  rate: advance.rate,
+  quantity: advance.remainingQuantity,
+  total: advance.remainingQuantity * advance.rate,
+  paid: advance.advance,
+  due: advance.remaining,
+});
+
+advance.sales.push(sale._id);
+await advance.save();
+
 
     // 2️⃣ Update credit (if due)
     if (advance.remaining > 0) {
@@ -158,15 +163,20 @@ exports.partialDeliver = async (req, res) => {
     const due = saleTotal - paidFromAdvance;
 
     // 3️⃣ Create sale
-    await Sale.create({
-      customerId: advance.customerId,
-      category: advance.category,
-      rate: advance.rate,
-      quantity: deliverQty,
-      total: saleTotal,
-      paid: paidFromAdvance,
-      due,
-    });
+    const sale = await Sale.create({
+  customerId: advance.customerId,
+  advanceId: advance._id, // 🔥 LINK
+  category: advance.category,
+  rate: advance.rate,
+  quantity: deliverQty,
+  total: saleTotal,
+  paid: paidFromAdvance,
+  due,
+});
+
+advance.sales.push(sale._id);
+await advance.save();
+
 
     // 4️⃣ Reduce advance money
     advance.advance -= paidFromAdvance;

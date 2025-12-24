@@ -1,5 +1,7 @@
 const Credit = require('../models/Credit');
 const CreditPayment = require('../models/CreditPayment');
+const Sale = require('../models/Sale');
+const SalePayment = require('../models/SalePayment');
 
 /**
  * --------------------------------------------------
@@ -139,6 +141,67 @@ exports.getCreditPayments = async (req, res) => {
     res.json(payments);
   } catch (error) {
     console.error('GET CREDIT PAYMENTS ERROR:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+
+exports.paySale = async (req, res) => {
+  try {
+    const { saleId, amount } = req.body;
+
+    if (!saleId || !amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid fields' });
+    }
+
+    const sale = await Sale.findById(saleId);
+    if (!sale) {
+      return res.status(404).json({ message: 'Sale not found' });
+    }
+
+    if (amount > sale.due) {
+      return res
+        .status(400)
+        .json({ message: 'Amount exceeds sale due' });
+    }
+
+    // 1️⃣ Update sale
+    sale.paid += amount;
+    sale.due -= amount;
+    await sale.save();
+
+    // 2️⃣ Update credit
+    const credit = await Credit.findOne({
+      customerId: sale.customerId,
+    });
+
+    if (credit) {
+      credit.totalDue = Math.max(credit.totalDue - amount, 0);
+      await credit.save();
+    }
+
+    // 3️⃣ Save sale payment history
+    await SalePayment.create({
+      saleId: sale._id,
+      customerId: sale.customerId,
+      amount,
+      receivedBy: req.user.id,
+    });
+
+    // 4️⃣ (Optional) Save customer credit history
+    await CreditPayment.create({
+      customerId: sale.customerId,
+      amount,
+      receivedBy: req.user.id,
+    });
+
+    res.json({
+      message: 'Sale payment recorded successfully',
+      sale,
+    });
+  } catch (error) {
+    console.error('PAY SALE ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
