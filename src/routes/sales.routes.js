@@ -6,7 +6,7 @@ const {
   getTodaySales,
 } = require('../controllers/sales.controller');
 
-const { getSaleDetail } = require('../controllers/sale.controller');
+const { getSaleDetail } = require('../controllers/sales.controller');
 
 const { authMiddleware } = require('../middleware/auth');
 
