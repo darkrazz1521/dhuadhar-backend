@@ -2,7 +2,6 @@ const Sale = require('../models/Sale');
 const Customer = require('../models/Customer');
 const Credit = require('../models/Credit');
 const Price = require('../models/Price');
-const Payment = require('../models/Payment');
 
 /* -------------------------------------------------------
  * CREATE SALE (customerId based – backward compatible)
@@ -49,7 +48,7 @@ exports.createSale = async (req, res) => {
     const due = Math.max(total - paidAmount, 0);
 
     /* ---------------- CREATE SALE ---------------- */
-    await Sale.create({
+    const sale = await Sale.create({
       customerId: customer._id,
       category,
       rate,
@@ -76,22 +75,26 @@ exports.createSale = async (req, res) => {
       }
     }
 
-    res.status(201).json({ message: 'Sale created successfully' });
+    res.status(201).json({
+      message: 'Sale created successfully',
+      saleId: sale._id,
+    });
   } catch (error) {
     console.error('SALE ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
+/* --------------------------------------------------
+ * GET SALES BY CUSTOMER (STEP-6.1)
+ * -------------------------------------------------- */
 exports.getSalesByCustomer = async (req, res) => {
   try {
     const { customerId } = req.params;
 
     const sales = await Sale.find({ customerId })
       .sort({ createdAt: -1 })
-      .select(
-        'createdAt quantity totalAmount paidAmount dueAmount'
-      );
+      .select('createdAt category quantity total paid due');
 
     res.json(sales);
   } catch (e) {
@@ -100,9 +103,9 @@ exports.getSalesByCustomer = async (req, res) => {
   }
 };
 
-// --------------------------------------------------
-// GET SALE FULL DETAIL
-// --------------------------------------------------
+/* --------------------------------------------------
+ * GET SALE FULL DETAIL (STEP-6.2)
+ * -------------------------------------------------- */
 exports.getSaleDetail = async (req, res) => {
   try {
     const { saleId } = req.params;
@@ -114,13 +117,7 @@ exports.getSaleDetail = async (req, res) => {
       return res.status(404).json({ message: 'Sale not found' });
     }
 
-    const payments = await Payment.find({ saleId })
-      .sort({ createdAt: -1 });
-
-    res.json({
-      sale,
-      payments,
-    });
+    res.json({ sale });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Server error' });
@@ -140,9 +137,7 @@ exports.getTodaySales = async (req, res) => {
 
     const sales = await Sale.find({
       createdAt: { $gte: start, $lte: end },
-    })
-      // ✅ UI STANDARD POPULATE (FINAL)
-      .populate('customerId', 'name mobile address');
+    }).populate('customerId', 'name mobile address');
 
     res.json(sales);
   } catch (error) {
