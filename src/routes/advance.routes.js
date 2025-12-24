@@ -4,8 +4,9 @@ const router = express.Router();
 const {
   createAdvance,
   getAdvances,
+  getAdvanceDetail, // ✅ ADD THIS
   convertToSale,
-  partialDeliver, // ✅ NEW
+  partialDeliver,
 } = require('../controllers/advance.controller');
 
 const {
@@ -24,6 +25,15 @@ router.post('/', authMiddleware, createAdvance);
 router.get('/', authMiddleware, getAdvances);
 
 // ------------------------------------
+// Get single advance detail + linked sales ✅ STEP-2.1
+// ------------------------------------
+router.get(
+  '/:id/detail',
+  authMiddleware,
+  getAdvanceDetail
+);
+
+// ------------------------------------
 // Full delivery → convert advance to sale (OWNER ONLY)
 // ------------------------------------
 router.post(
@@ -34,7 +44,7 @@ router.post(
 );
 
 // ------------------------------------
-// Partial delivery (OWNER ONLY) ✅
+// Partial delivery (OWNER ONLY)
 // ------------------------------------
 router.post(
   '/:id/partial-deliver',
