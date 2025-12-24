@@ -9,6 +9,9 @@ const {
 } = require('../controllers/credit.controller');
 
 const {
+  getCustomerCreditSummary,
+} = require('../controllers/credit.controller');
+const {
   authMiddleware,
   ownerOnly,
 } = require('../middleware/auth');
@@ -40,6 +43,12 @@ router.post(
   authMiddleware,
   ownerOnly,
   clearCredit
+);
+
+router.get(
+  '/customer/:customerId/summary',
+  authMiddleware,
+  getCustomerCreditSummary
 );
 
 module.exports = router;

@@ -46,3 +46,17 @@ exports.createCustomer = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// GET all customers (for UI)
+exports.getCustomers = async (req, res) => {
+  try {
+    const customers = await Customer.find()
+      .sort({ createdAt: -1 })
+      .select('name mobile address');
+
+    res.json(customers);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

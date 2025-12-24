@@ -2,6 +2,7 @@ const Sale = require('../models/Sale');
 const Customer = require('../models/Customer');
 const Credit = require('../models/Credit');
 const Price = require('../models/Price');
+const Payment = require('../models/Payment');
 
 /* -------------------------------------------------------
  * CREATE SALE (customerId based – backward compatible)
@@ -78,6 +79,50 @@ exports.createSale = async (req, res) => {
     res.status(201).json({ message: 'Sale created successfully' });
   } catch (error) {
     console.error('SALE ERROR:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.getSalesByCustomer = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const sales = await Sale.find({ customerId })
+      .sort({ createdAt: -1 })
+      .select(
+        'createdAt quantity totalAmount paidAmount dueAmount'
+      );
+
+    res.json(sales);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// --------------------------------------------------
+// GET SALE FULL DETAIL
+// --------------------------------------------------
+exports.getSaleDetail = async (req, res) => {
+  try {
+    const { saleId } = req.params;
+
+    const sale = await Sale.findById(saleId)
+      .populate('customerId', 'name mobile address');
+
+    if (!sale) {
+      return res.status(404).json({ message: 'Sale not found' });
+    }
+
+    const payments = await Payment.find({ saleId })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      sale,
+      payments,
+    });
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ message: 'Server error' });
   }
 };

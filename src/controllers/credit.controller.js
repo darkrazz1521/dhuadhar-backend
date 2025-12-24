@@ -86,6 +86,44 @@ exports.clearCredit = async (req, res) => {
   }
 };
 
+// --------------------------------------------------
+// CUSTOMER CREDIT SUMMARY
+// --------------------------------------------------
+exports.getCustomerCreditSummary = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const credit = await Credit.findOne({ customerId })
+      .populate('customerId', 'name mobile address');
+
+    if (!credit) {
+      return res.json({
+        totalDue: 0,
+        sales: [],
+        payments: [],
+      });
+    }
+
+    const sales = await Sale.find({
+      customerId,
+      dueAmount: { $gt: 0 },
+    }).sort({ createdAt: -1 });
+
+    const payments = await CreditPayment.find({ customerId })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      customer: credit.customerId,
+      totalDue: credit.totalDue,
+      sales,
+      payments,
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 /**
  * --------------------------------------------------
  * GET CREDIT PAYMENT HISTORY (CUSTOMER-WISE)

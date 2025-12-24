@@ -6,6 +6,8 @@ const {
   getTodaySales,
 } = require('../controllers/sales.controller');
 
+const { getSaleDetail } = require('../controllers/sale.controller');
+
 const { authMiddleware } = require('../middleware/auth');
 
 // CREATE SALE
@@ -21,5 +23,18 @@ router.get(
   authMiddleware,
   getTodaySales
 );
+
+router.get(
+  '/customer/:customerId',
+  authMiddleware,
+  getSalesByCustomer
+);
+
+router.get(
+  '/:saleId/detail',
+  authMiddleware,
+  getSaleDetail
+);
+
 
 module.exports = router;
