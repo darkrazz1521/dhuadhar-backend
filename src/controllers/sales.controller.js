@@ -2,9 +2,10 @@ const Sale = require('../models/Sale');
 const Customer = require('../models/Customer');
 const Credit = require('../models/Credit');
 const Price = require('../models/Price');
+const SalePayment = require('../models/SalePayment');
 
 /* -------------------------------------------------------
- * CREATE SALE (customerId based – backward compatible)
+ * CREATE SALE (customerId based – FINAL)
  * ----------------------------------------------------- */
 exports.createSale = async (req, res) => {
   try {
@@ -17,14 +18,14 @@ exports.createSale = async (req, res) => {
     /* ---------------- CUSTOMER RESOLUTION ---------------- */
     let customer = null;
 
-    // ✅ NEW FLOW (preferred)
+    // ✅ Preferred flow
     if (customerId) {
       customer = await Customer.findById(customerId);
       if (!customer) {
         return res.status(400).json({ message: 'Invalid customer' });
       }
     }
-    // ⚠️ OLD FLOW (temporary compatibility)
+    // ⚠️ Backward compatibility
     else if (customerName) {
       customer = await Customer.findOne({ name: customerName });
       if (!customer) {
@@ -37,9 +38,9 @@ exports.createSale = async (req, res) => {
     /* ---------------- PRICE ---------------- */
     const price = await Price.findOne({ category });
     if (!price) {
-      return res
-        .status(400)
-        .json({ message: 'Price not set for category' });
+      return res.status(400).json({
+        message: 'Price not set for category',
+      });
     }
 
     const rate = price.rate;
@@ -57,6 +58,16 @@ exports.createSale = async (req, res) => {
       paid: paidAmount,
       due,
     });
+
+    /* ---------------- ADVANCE PAYMENT (SALE-LEVEL) ---------------- */
+    if (paidAmount > 0) {
+      await SalePayment.create({
+        saleId: sale._id,
+        customerId: customer._id,
+        amount: paidAmount,
+        receivedBy: req.user.id,
+      });
+    }
 
     /* ---------------- CREDIT UPDATE ---------------- */
     if (due > 0) {
@@ -104,7 +115,7 @@ exports.getSalesByCustomer = async (req, res) => {
 };
 
 /* --------------------------------------------------
- * GET SALE FULL DETAIL (STEP-6.2)
+ * GET SALE FULL DETAIL + PAYMENT HISTORY (STEP-7)
  * -------------------------------------------------- */
 exports.getSaleDetail = async (req, res) => {
   try {
@@ -117,7 +128,13 @@ exports.getSaleDetail = async (req, res) => {
       return res.status(404).json({ message: 'Sale not found' });
     }
 
-    res.json({ sale });
+    const payments = await SalePayment.find({ saleId })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      sale,
+      payments,
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Server error' });
