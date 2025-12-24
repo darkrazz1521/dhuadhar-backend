@@ -6,7 +6,9 @@ const {
   getTodaySales,
   getSalesByCustomer,
   getSaleDetail,
+  paySale, // 👈 ADD THIS
 } = require('../controllers/sales.controller');
+
 
 const { authMiddleware } = require('../middleware/auth');
 
@@ -37,5 +39,13 @@ router.get(
   authMiddleware,
   getSaleDetail
 );
+
+// PAY AGAINST A SALE
+router.post(
+  '/:saleId/pay',
+  authMiddleware,
+  paySale
+);
+
 
 module.exports = router;

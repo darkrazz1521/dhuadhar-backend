@@ -8,7 +8,12 @@ const DEFAULT_CATEGORIES = [
   'Category 1',
   'Category 2',
   'Category 3',
+  'Rath',
+  'Goriya',
+  'Tukra 1',
+  'Tukra 2',
 ];
+
 
 /**
  * SET or UPDATE PRICE (OWNER / ADMIN)

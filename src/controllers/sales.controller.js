@@ -162,3 +162,61 @@ exports.getTodaySales = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+/* --------------------------------------------------
+ * PAY AGAINST A SPECIFIC SALE (STEP-8)
+ * -------------------------------------------------- */
+exports.paySale = async (req, res) => {
+  try {
+    const { saleId } = req.params;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid amount' });
+    }
+
+    const sale = await Sale.findById(saleId);
+
+    if (!sale) {
+      return res.status(404).json({ message: 'Sale not found' });
+    }
+
+    if (sale.due <= 0) {
+      return res.status(400).json({ message: 'No due on this sale' });
+    }
+
+    const payAmount = Math.min(amount, sale.due);
+
+    /* -------- UPDATE SALE -------- */
+    sale.paid += payAmount;
+    sale.due -= payAmount;
+    await sale.save();
+
+    /* -------- SAVE SALE PAYMENT -------- */
+    await SalePayment.create({
+      saleId: sale._id,
+      customerId: sale.customerId,
+      amount: payAmount,
+      receivedBy: req.user.id,
+    });
+
+    /* -------- UPDATE CREDIT -------- */
+    const credit = await Credit.findOne({
+      customerId: sale.customerId,
+    });
+
+    if (credit) {
+      credit.totalDue = Math.max(credit.totalDue - payAmount, 0);
+      await credit.save();
+    }
+
+    res.json({
+      message: 'Payment recorded successfully',
+      sale,
+    });
+  } catch (error) {
+    console.error('PAY SALE ERROR:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+

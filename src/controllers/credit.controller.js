@@ -106,7 +106,7 @@ exports.getCustomerCreditSummary = async (req, res) => {
 
     const sales = await Sale.find({
       customerId,
-      dueAmount: { $gt: 0 },
+  due: { $gt: 0 },
     }).sort({ createdAt: -1 });
 
     const payments = await CreditPayment.find({ customerId })
