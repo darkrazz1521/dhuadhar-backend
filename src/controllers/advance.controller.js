@@ -53,11 +53,35 @@ exports.createAdvance = async (req, res) => {
 -------------------------------------------------- */
 exports.getAdvances = async (req, res) => {
   try {
+    // 1. Get plain Javascript objects using .lean()
     const advances = await Advance.find()
       .populate('customerId', 'name mobile address')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
-    res.json(advances);
+    // 2. Extract Customer IDs
+    const customerIds = advances.map(a => a.customerId._id);
+
+    // 3. Find Credit Ledger for these customers
+    const credits = await Credit.find({ customerId: { $in: customerIds } }).lean();
+
+    // 4. Create a Map for fast lookup (CustomerId -> TotalDue)
+    const creditMap = {};
+    credits.forEach(c => {
+      creditMap[c.customerId.toString()] = c.totalDue;
+    });
+
+    // 5. Attach 'currentDue' to the response
+    const data = advances.map(adv => {
+      const cId = adv.customerId._id.toString();
+      return {
+        ...adv,
+        // If credit record exists, use that. Else default to 0.
+        currentDue: creditMap[cId] !== undefined ? creditMap[cId] : 0
+      };
+    });
+
+    res.json(data);
   } catch (error) {
     console.error('GET ADVANCES ERROR:', error);
     res.status(500).json({ message: 'Server error' });
