@@ -9,7 +9,16 @@ const SalePayment = require('../models/SalePayment');
  * ----------------------------------------------------- */
 exports.createSale = async (req, res) => {
   try {
-    const { customerId, customerName, category, quantity, paid } = req.body;
+    const {
+  customerId,
+  customerName,
+  category,
+  quantity,
+  paid,
+  transport,
+  driver,
+} = req.body;
+
 
     if (!category || !quantity) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -50,14 +59,19 @@ exports.createSale = async (req, res) => {
 
     /* ---------------- CREATE SALE ---------------- */
     const sale = await Sale.create({
-      customerId: customer._id,
-      category,
-      rate,
-      quantity,
-      total,
-      paid: paidAmount,
-      due,
-    });
+  customerId: customer._id,
+  category,
+  rate,
+  quantity,
+  total,
+  paid: paidAmount,
+  due,
+
+  // ✅ NEW FIELDS
+  transport: transport || null,
+  driver: driver || null,
+});
+
 
     /* ---------------- ADVANCE PAYMENT (SALE-LEVEL) ---------------- */
     if (paidAmount > 0) {
@@ -122,7 +136,9 @@ exports.getSaleDetail = async (req, res) => {
     const { saleId } = req.params;
 
     const sale = await Sale.findById(saleId)
-      .populate('customerId', 'name mobile address');
+  .populate('customerId', 'name mobile address')
+  .populate('driver', 'name mobile');
+
 
     if (!sale) {
       return res.status(404).json({ message: 'Sale not found' });

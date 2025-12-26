@@ -100,3 +100,21 @@ exports.toggleLabourStatus = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// --------------------------------------------------
+// GET ACTIVE DRIVERS ONLY
+// --------------------------------------------------
+exports.getDrivers = async (req, res) => {
+  try {
+    const drivers = await Labour.find({
+      workType: 'Driver',
+      isActive: true,
+    }).sort({ name: 1 });
+
+    res.json(drivers);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+

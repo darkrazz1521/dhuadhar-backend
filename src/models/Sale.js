@@ -26,6 +26,20 @@ const saleSchema = new mongoose.Schema(
       required: true,
     },
 
+    // 🚚 Transport Vehicle (string, hardcoded list on frontend)
+transport: {
+  type: String,
+  default: null,
+},
+
+// 👨‍✈️ Driver (Labour reference)
+driver: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Labour',
+  default: null,
+},
+
+
     rate: {
       type: Number,
       required: true,
