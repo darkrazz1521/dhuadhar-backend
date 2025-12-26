@@ -51,6 +51,12 @@ exports.getCreditByCustomer = async (req, res) => {
  * Records payment history (General Credit Payment)
  * --------------------------------------------------
  */
+/* --------------------------------------------------
+   CLEAR / ADJUST CREDIT (SMART AUTO-ALLOCATION)
+   1. Reduces Global Credit
+   2. Distributes payment to oldest unpaid sales
+   3. Records history
+-------------------------------------------------- */
 exports.clearCredit = async (req, res) => {
   try {
     const { customerId, amount } = req.body;
@@ -59,17 +65,39 @@ exports.clearCredit = async (req, res) => {
       return res.status(400).json({ message: 'Invalid fields' });
     }
 
+    // 1. Update Global Credit Ledger
     let credit = await Credit.findOne({ customerId });
-
     if (!credit) {
       return res.status(404).json({ message: 'Credit not found' });
     }
-
-    // Reduce credit safely
+    
+    // Total Due kam kar diya
     credit.totalDue = Math.max(credit.totalDue - amount, 0);
     await credit.save();
 
-    // SAVE PAYMENT HISTORY (General)
+    // 2. SMART LOGIC: Oldest Bills pe paisa chadhao
+    // Find unpaid sales, oldest first
+    const unpaidSales = await Sale.find({ 
+      customerId, 
+      due: { $gt: 0 } 
+    }).sort({ createdAt: 1 }); // 1 = Oldest first
+
+    let remainingPayment = amount;
+
+    for (const sale of unpaidSales) {
+      if (remainingPayment <= 0) break; // Paisa khatam
+
+      // Kitna adjust kar sakte hain is bill me?
+      const adjust = Math.min(sale.due, remainingPayment);
+
+      sale.paid += adjust;
+      sale.due -= adjust;
+      await sale.save();
+
+      remainingPayment -= adjust;
+    }
+
+    // 3. Save History
     await CreditPayment.create({
       customerId,
       amount,
@@ -77,9 +105,10 @@ exports.clearCredit = async (req, res) => {
     });
 
     res.json({
-      message: 'Credit updated successfully',
-      credit,
+      message: 'Payment received & bills updated',
+      updatedCredit: credit.totalDue
     });
+
   } catch (error) {
     console.error('CLEAR CREDIT ERROR:', error);
     res.status(500).json({ message: 'Server error' });
