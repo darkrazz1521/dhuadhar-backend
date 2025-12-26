@@ -74,3 +74,24 @@ exports.createCustomer = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
+/* ------------------------------------
+   GET SINGLE CUSTOMER BY ID (NEW)
+------------------------------------ */
+exports.getCustomerById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const customer = await Customer.findById(id);
+
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+
+    res.json(customer);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
