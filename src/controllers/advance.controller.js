@@ -49,35 +49,33 @@ exports.createAdvance = async (req, res) => {
 };
 
 /* --------------------------------------------------
-   2. GET ALL ADVANCE ORDERS
+   2. GET ALL ADVANCE ORDERS (DEAL SPECIFIC DUE)
+   Fetches advances and calculates due based on LINKED SALES only.
 -------------------------------------------------- */
 exports.getAdvances = async (req, res) => {
   try {
-    // 1. Get plain Javascript objects using .lean()
     const advances = await Advance.find()
       .populate('customerId', 'name mobile address')
+      // 🔥 MAGIC: Hamein sirf sales ka 'due' field chahiye calculation ke liye
+      .populate({
+        path: 'sales',
+        select: 'due' 
+      })
       .sort({ createdAt: -1 })
       .lean();
 
-    // 2. Extract Customer IDs
-    const customerIds = advances.map(a => a.customerId._id);
-
-    // 3. Find Credit Ledger for these customers
-    const credits = await Credit.find({ customerId: { $in: customerIds } }).lean();
-
-    // 4. Create a Map for fast lookup (CustomerId -> TotalDue)
-    const creditMap = {};
-    credits.forEach(c => {
-      creditMap[c.customerId.toString()] = c.totalDue;
-    });
-
-    // 5. Attach 'currentDue' to the response
     const data = advances.map(adv => {
-      const cId = adv.customerId._id.toString();
+      // 🧮 Calculate Deal Specific Due
+      let dealSpecificDue = 0;
+
+      if (adv.sales && adv.sales.length > 0) {
+        // Is deal ki saari sales ka due jodo
+        dealSpecificDue = adv.sales.reduce((sum, sale) => sum + (sale.due || 0), 0);
+      }
+
       return {
         ...adv,
-        // If credit record exists, use that. Else default to 0.
-        currentDue: creditMap[cId] !== undefined ? creditMap[cId] : 0
+        currentDue: dealSpecificDue // ✅ Ye ab Global nahi, Deal Specific hai
       };
     });
 
