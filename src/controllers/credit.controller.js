@@ -12,7 +12,6 @@ const SalePayment = require('../models/SalePayment');
 exports.getCredits = async (req, res) => {
   try {
     const credits = await Credit.find()
-      // ✅ UI STANDARD POPULATE (FINAL)
       .populate('customerId', 'name mobile address')
       .sort({ totalDue: -1 });
 
@@ -33,7 +32,6 @@ exports.getCreditByCustomer = async (req, res) => {
     const { customerId } = req.params;
 
     const credit = await Credit.findOne({ customerId })
-      // ✅ UI STANDARD POPULATE (FINAL)
       .populate('customerId', 'name mobile address');
 
     if (!credit) {
@@ -50,7 +48,7 @@ exports.getCreditByCustomer = async (req, res) => {
 /**
  * --------------------------------------------------
  * CLEAR / ADJUST CREDIT (OWNER ONLY)
- * Records payment history ✔️
+ * Records payment history (General Credit Payment)
  * --------------------------------------------------
  */
 exports.clearCredit = async (req, res) => {
@@ -67,11 +65,11 @@ exports.clearCredit = async (req, res) => {
       return res.status(404).json({ message: 'Credit not found' });
     }
 
-    // ✅ Reduce credit safely
+    // Reduce credit safely
     credit.totalDue = Math.max(credit.totalDue - amount, 0);
     await credit.save();
 
-    // 🧾 SAVE PAYMENT HISTORY
+    // SAVE PAYMENT HISTORY (General)
     await CreditPayment.create({
       customerId,
       amount,
@@ -88,9 +86,11 @@ exports.clearCredit = async (req, res) => {
   }
 };
 
-// --------------------------------------------------
-// CUSTOMER CREDIT SUMMARY
-// --------------------------------------------------
+/**
+ * --------------------------------------------------
+ * CUSTOMER CREDIT SUMMARY
+ * --------------------------------------------------
+ */
 exports.getCustomerCreditSummary = async (req, res) => {
   try {
     const { customerId } = req.params;
@@ -106,11 +106,13 @@ exports.getCustomerCreditSummary = async (req, res) => {
       });
     }
 
+    // Get Unpaid Sales
     const sales = await Sale.find({
       customerId,
-  due: { $gt: 0 },
+      due: { $gt: 0 },
     }).sort({ createdAt: -1 });
 
+    // Get General Credit Payments
     const payments = await CreditPayment.find({ customerId })
       .sort({ createdAt: -1 });
 
@@ -145,8 +147,11 @@ exports.getCreditPayments = async (req, res) => {
   }
 };
 
-
-
+/**
+ * --------------------------------------------------
+ * PAY AGAINST A SPECIFIC SALE (LOGIC FIXED)
+ * --------------------------------------------------
+ */
 exports.paySale = async (req, res) => {
   try {
     const { saleId, amount } = req.body;
@@ -171,7 +176,7 @@ exports.paySale = async (req, res) => {
     sale.due -= amount;
     await sale.save();
 
-    // 2️⃣ Update credit
+    // 2️⃣ Update global credit ledger
     const credit = await Credit.findOne({
       customerId: sale.customerId,
     });
@@ -181,16 +186,10 @@ exports.paySale = async (req, res) => {
       await credit.save();
     }
 
-    // 3️⃣ Save sale payment history
+    // 3️⃣ Save sale payment history ONLY
+    // (Removed CreditPayment to avoid double counting)
     await SalePayment.create({
       saleId: sale._id,
-      customerId: sale.customerId,
-      amount,
-      receivedBy: req.user.id,
-    });
-
-    // 4️⃣ (Optional) Save customer credit history
-    await CreditPayment.create({
       customerId: sale.customerId,
       amount,
       receivedBy: req.user.id,
