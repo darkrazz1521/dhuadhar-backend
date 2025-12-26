@@ -36,22 +36,30 @@ exports.searchCustomers = async (req, res) => {
   }
 };
 
-// ------------------------------------
-// CREATE CUSTOMER
-// ------------------------------------
+/* ------------------------------------
+   CREATE CUSTOMER (IMPROVED)
+------------------------------------ */
 exports.createCustomer = async (req, res) => {
   try {
-    const { name, mobile, address } = req.body;
+    let { name, mobile, address } = req.body;
 
     if (!name || !mobile || !address) {
       return res.status(400).json({ message: 'Missing fields' });
     }
 
+    // 1. Sanitize Data
+    name = name.trim();
+    mobile = mobile.trim();
+    address = address.trim();
+
+    // 2. Simple Mobile Validation (Optional but good)
+    if (mobile.length < 10) {
+      return res.status(400).json({ message: 'Invalid mobile number' });
+    }
+
     const exists = await Customer.findOne({ mobile });
     if (exists) {
-      return res
-        .status(400)
-        .json({ message: 'Customer already exists' });
+      return res.status(400).json({ message: 'Customer with this mobile already exists' });
     }
 
     const customer = await Customer.create({
