@@ -45,17 +45,11 @@ exports.getCreditByCustomer = async (req, res) => {
   }
 };
 
-/**
- * --------------------------------------------------
- * CLEAR / ADJUST CREDIT (OWNER ONLY)
- * Records payment history (General Credit Payment)
- * --------------------------------------------------
- */
 /* --------------------------------------------------
-   CLEAR / ADJUST CREDIT (SMART AUTO-ALLOCATION)
+   CLEAR / ADJUST CREDIT (SMART AUTO-ALLOCATION WITH HISTORY)
    1. Reduces Global Credit
    2. Distributes payment to oldest unpaid sales
-   3. Records history
+   3. Records history in BOTH (Sale & Credit Ledger)
 -------------------------------------------------- */
 exports.clearCredit = async (req, res) => {
   try {
@@ -65,39 +59,46 @@ exports.clearCredit = async (req, res) => {
       return res.status(400).json({ message: 'Invalid fields' });
     }
 
-    // 1. Update Global Credit Ledger
+    // 1. Update Global Credit Ledger (Total Due Kam Karo)
     let credit = await Credit.findOne({ customerId });
     if (!credit) {
       return res.status(404).json({ message: 'Credit not found' });
     }
     
-    // Total Due kam kar diya
     credit.totalDue = Math.max(credit.totalDue - amount, 0);
     await credit.save();
 
     // 2. SMART LOGIC: Oldest Bills pe paisa chadhao
-    // Find unpaid sales, oldest first
     const unpaidSales = await Sale.find({ 
       customerId, 
       due: { $gt: 0 } 
-    }).sort({ createdAt: 1 }); // 1 = Oldest first
+    }).sort({ createdAt: 1 }); // Oldest first
 
     let remainingPayment = amount;
 
     for (const sale of unpaidSales) {
-      if (remainingPayment <= 0) break; // Paisa khatam
+      if (remainingPayment <= 0) break;
 
       // Kitna adjust kar sakte hain is bill me?
       const adjust = Math.min(sale.due, remainingPayment);
 
+      // A. Sale ka amount update karo
       sale.paid += adjust;
       sale.due -= adjust;
       await sale.save();
 
+      // B. 🔥 NEW: Is specific Sale ki History create karo (Taaki Sale Detail me dikhe)
+      await SalePayment.create({
+        saleId: sale._id,
+        customerId,
+        amount: adjust,
+        receivedBy: req.user.id,
+      });
+
       remainingPayment -= adjust;
     }
 
-    // 3. Save History
+    // 3. Save Global History (Taaki Customer Ledger me dikhe)
     await CreditPayment.create({
       customerId,
       amount,
