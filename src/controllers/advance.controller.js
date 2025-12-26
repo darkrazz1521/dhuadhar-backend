@@ -103,16 +103,23 @@ exports.convertToSale = async (req, res) => {
       return res.status(400).json({ message: 'Already delivered' });
     }
 
-    const sale = await Sale.create({
-      customerId: advance.customerId,
-      advanceId: advance._id,
-      category: advance.category,
-      rate: advance.rate,
-      quantity: advance.remainingQuantity,
-      total: advance.remainingQuantity * advance.rate,
-      paid: advance.advance,
-      due: advance.remaining,
-    });
+    const { transport, driver } = req.body;
+
+const sale = await Sale.create({
+  customerId: advance.customerId,
+  advanceId: advance._id,
+  category: advance.category,
+  rate: advance.rate,
+  quantity: advance.remainingQuantity,
+  total: advance.remainingQuantity * advance.rate,
+  paid: advance.advance,
+  due: advance.remaining,
+
+  // ✅ Logistics
+  transport: transport || null,
+  driver: driver || null,
+});
+
 
     advance.sales.push(sale._id);
 
@@ -149,8 +156,7 @@ exports.convertToSale = async (req, res) => {
 exports.partialDeliver = async (req, res) => {
   try {
     const { id } = req.params;
-    const { deliverQty } = req.body;
-
+    const { deliverQty, transport, driver } = req.body;
     const advance = await Advance.findById(id);
     if (!advance) {
       return res.status(404).json({ message: 'Advance not found' });
@@ -165,15 +171,20 @@ exports.partialDeliver = async (req, res) => {
     const due = saleTotal - paidFromAdvance;
 
     const sale = await Sale.create({
-      customerId: advance.customerId,
-      advanceId: advance._id,
-      category: advance.category,
-      rate: advance.rate,
-      quantity: deliverQty,
-      total: saleTotal,
-      paid: paidFromAdvance,
-      due,
-    });
+  customerId: advance.customerId,
+  advanceId: advance._id,
+  category: advance.category,
+  rate: advance.rate,
+  quantity: deliverQty,
+  total: saleTotal,
+  paid: paidFromAdvance,
+  due,
+
+  // ✅ NEW — Logistics
+  transport: transport || null,
+  driver: driver || null,
+});
+
 
     advance.sales.push(sale._id);
 
