@@ -4,9 +4,9 @@ const router = express.Router();
 const {
   createAdvance,
   getAdvances,
-  getAdvanceDetail, // ✅ ADD THIS
+  getAdvanceDetail,
   convertToSale,
-  partialDeliver,
+  partialDeliver, // ✅ Correct Import
 } = require('../controllers/advance.controller');
 
 const {
@@ -15,26 +15,25 @@ const {
 } = require('../middleware/auth');
 
 // ------------------------------------
-// Create advance order (STAFF + OWNER)
+// Create advance order
 // ------------------------------------
 router.post('/', authMiddleware, createAdvance);
 
 // ------------------------------------
-// Get all advance orders (STAFF + OWNER)
+// Get all advance orders
 // ------------------------------------
 router.get('/', authMiddleware, getAdvances);
 
 // ------------------------------------
-// Get single advance detail + linked sales ✅ STEP-2.1
+// Get single advance detail
 // ------------------------------------
-router.get(
-  '/:id/detail',
-  authMiddleware,
-  getAdvanceDetail
-);
+// Note: If your app calls "$baseUrl/advances/$id", use '/:id'
+// If it calls "$baseUrl/advances/$id/detail", use '/:id/detail'
+// Standard REST is usually just /:id:
+router.get('/:id', authMiddleware, getAdvanceDetail); 
 
 // ------------------------------------
-// Full delivery → convert advance to sale (OWNER ONLY)
+// Full delivery → convert advance to sale
 // ------------------------------------
 router.post(
   '/:id/convert',
@@ -44,10 +43,11 @@ router.post(
 );
 
 // ------------------------------------
-// Partial delivery (OWNER ONLY)
+// Partial delivery (MATCHES FLUTTER APP)
 // ------------------------------------
+// 🔥 Fixed: Changed 'partial-deliver' to 'deliver' to match Flutter service
 router.post(
-  '/:id/partial-deliver',
+  '/:id/deliver', 
   authMiddleware,
   ownerOnly,
   partialDeliver
