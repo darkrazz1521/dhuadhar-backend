@@ -113,19 +113,8 @@ exports.getSalesReport = async (req, res) => {
   try {
     const { from, to } = req.query;
 
-// 🇮🇳 IST offset in minutes
-const IST_OFFSET = 5.5 * 60;
-
-// START DATE (00:00 IST)
-const start = from ? new Date(from) : new Date();
-start.setMinutes(start.getMinutes() - IST_OFFSET);
-start.setUTCHours(0, 0, 0, 0);
-
-// END DATE (23:59 IST)
-const end = to ? new Date(to) : new Date();
-end.setMinutes(end.getMinutes() - IST_OFFSET);
-end.setUTCHours(23, 59, 59, 999);
-
+    const start = from ? new Date(from) : new Date();
+    const end = to ? new Date(to) : new Date();
 
     const sales = await Sale.find({
       createdAt: { $gte: start, $lte: end },
@@ -142,7 +131,6 @@ end.setUTCHours(23, 59, 59, 999);
     let totalSales = 0;
     let totalBricks = 0;
     let totalCreditGiven = 0;
-    let totalCollection = 0;
 
     const categories = {};
     const graph = {};
@@ -159,21 +147,13 @@ end.setUTCHours(23, 59, 59, 999);
       categories[s.category].qty += s.quantity;
       categories[s.category].amount += s.total;
 
-      const dateKey = s.createdAt.toISOString().split('T')[0];
-      graph[dateKey] = (graph[dateKey] || 0) + s.total;
+      const key = s.createdAt.toISOString().split('T')[0];
+      graph[key] = (graph[key] || 0) + s.total;
     });
 
-    const saleCollection = salePayments.reduce(
-      (sum, p) => sum + (p.amount || 0),
-      0
-    );
-
-    const creditRecovery = creditPayments.reduce(
-      (sum, p) => sum + (p.amount || 0),
-      0
-    );
-
-    totalCollection = saleCollection + creditRecovery;
+    const totalCollection =
+      salePayments.reduce((s, p) => s + (p.amount || 0), 0) +
+      creditPayments.reduce((s, p) => s + (p.amount || 0), 0);
 
     res.json({
       summary: {
