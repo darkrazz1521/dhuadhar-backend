@@ -113,11 +113,19 @@ exports.getSalesReport = async (req, res) => {
   try {
     const { from, to } = req.query;
 
-    const start = from ? new Date(from) : new Date();
-    start.setHours(0, 0, 0, 0);
+// 🇮🇳 IST offset in minutes
+const IST_OFFSET = 5.5 * 60;
 
-    const end = to ? new Date(to) : new Date();
-    end.setHours(23, 59, 59, 999);
+// START DATE (00:00 IST)
+const start = from ? new Date(from) : new Date();
+start.setMinutes(start.getMinutes() - IST_OFFSET);
+start.setUTCHours(0, 0, 0, 0);
+
+// END DATE (23:59 IST)
+const end = to ? new Date(to) : new Date();
+end.setMinutes(end.getMinutes() - IST_OFFSET);
+end.setUTCHours(23, 59, 59, 999);
+
 
     const sales = await Sale.find({
       createdAt: { $gte: start, $lte: end },
