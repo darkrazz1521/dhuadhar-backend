@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { getSummary } = require('../controllers/report.controller');
+const {
+  getSummary,
+  getSalesReport, // ✅ FIX
+} = require('../controllers/report.controller');
 const { authMiddleware, ownerOnly } = require('../middleware/auth');
 
 router.get('/summary', authMiddleware, ownerOnly, getSummary);
