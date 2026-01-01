@@ -11,18 +11,17 @@ const labourAttendanceSchema = new mongoose.Schema(
       type: String, // YYYY-MM-DD
       required: true,
     },
-    present: {
-      type: Boolean,
-      default: true,
-    },
-    wage: {
-      type: Number,
-      default: 0,
+    // 🟢 🟠 🔴 New Status Field
+    status: {
+      type: String,
+      enum: ['P', 'H', 'A'], // Present, Half-Day, Absent
+      default: 'P',
     },
   },
   { timestamps: true }
 );
 
+// Ensure one record per labour per day
 labourAttendanceSchema.index(
   { labourId: 1, date: 1 },
   { unique: true }

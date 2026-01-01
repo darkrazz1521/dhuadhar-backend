@@ -6,8 +6,10 @@ const {
 } = require('../controllers/attendance.controller');
 const { authMiddleware, ownerOnly } = require('../middleware/auth');
 
+// GET /api/attendance/daily/2025-01-01
 router.get('/daily/:date', authMiddleware, ownerOnly, getDailyAttendance);
-router.post('/daily/:date', authMiddleware, ownerOnly, saveAttendance);
 
+// POST /api/attendance/daily/2025-01-01
+router.post('/daily/:date', authMiddleware, ownerOnly, saveAttendance);
 
 module.exports = router;
