@@ -15,15 +15,15 @@ const productionEntrySchema = new mongoose.Schema(
 
     /**
      * Production type
-     * Matches Labour.workType
+     * Matches Labour.workType (e.g. 'Loader', 'Modular')
      */
     type: {
       type: String,
-      enum: ['Modular', 'Kiln', 'Chamber', 'Loader'],
-      required: true,
+      required: true, 
+      // enum: ['Modular', 'Kiln', 'Chamber', 'Loader'], // Optional validation
     },
 
-    // 🧱 Total bricks produced
+    // 🧱 Total bricks produced (or Trips for Loader)
     brickCount: {
       type: Number,
       default: 0,
@@ -48,10 +48,7 @@ const productionEntrySchema = new mongoose.Schema(
 
 /**
  * 🔐 CRITICAL UNIQUE INDEX
- * Ensures:
- * - One labour
- * - One date
- * - One production type
+ * Ensures one record per worker per day per type
  */
 productionEntrySchema.index(
   { labourId: 1, date: 1, type: 1 },

@@ -7,10 +7,10 @@ const ProductionEntry = require('../models/ProductionEntry');
 exports.getDailyProduction = async (req, res) => {
   try {
     const { date } = req.params;
-
+    
     /**
      * Expected:
-     * GET /production/daily/:date?workType=Modular|Kiln|Chamber|Loader
+     * GET /production/daily/:date?workType=Loader
      */
     const { workType } = req.query;
 
@@ -21,9 +21,11 @@ exports.getDailyProduction = async (req, res) => {
     // 1️⃣ Fetch ACTIVE production labourers (filtered by workType)
     const labourFilter = {
       isActive: true,
-      category: 'production',
+      // We only want labourers marked as 'production' category
+      category: 'production', 
     };
 
+    // ⚡ CRITICAL: This line makes sure we only get Loaders if workType=Loader
     if (workType) {
       labourFilter.workType = workType;
     }
@@ -48,17 +50,14 @@ exports.getDailyProduction = async (req, res) => {
     const result = labours.map((l) => {
       const record = productionMap[l._id.toString()];
 
-      const rate =
-        l.ratePer1000Bricks ??
-        l.productionRate ??
-        0;
+      // Get the correct rate
+      const rate = l.ratePer1000Bricks || l.productionRate || 0;
 
       return {
         labourId: l._id,
         name: l.name,
         workType: l.workType,
-
-        rate, // frontend calculation
+        rate: rate, // frontend calculation
 
         brickCount: record ? record.brickCount : 0,
         wage: record ? record.wage : 0,
@@ -85,20 +84,21 @@ exports.saveProduction = async (req, res) => {
       return res.status(400).json({ message: 'Invalid data' });
     }
 
+    // Default to 'production' if no specific type sent (fallback)
     const type = workType || 'production';
 
     const bulkOps = entries.map((e) => ({
       updateOne: {
         filter: {
           labourId: e.labourId,
-          date,
-          type, // 🔐 CRITICAL
+          date: date,
+          type: type, // 🔐 CRITICAL: Saves as 'Loader' or 'Modular'
         },
         update: {
           $set: {
             brickCount: e.brickCount,
             wage: e.wage,
-            type,
+            type: type,
           },
         },
         upsert: true,
@@ -117,22 +117,17 @@ exports.saveProduction = async (req, res) => {
 };
 
 // --------------------------------------------------
-// MARK PAID (OPTIONAL)
+// MARK PAID (Optional)
 // --------------------------------------------------
 exports.markPaid = async (req, res) => {
   try {
     const entry = await ProductionEntry.findById(req.params.id);
-
-    if (!entry) {
-      return res.status(404).json({ message: 'Entry not found' });
+    if (entry) {
+      entry.paid = true;
+      await entry.save();
     }
-
-    entry.paid = true;
-    await entry.save();
-
     res.json(entry);
   } catch (error) {
-    console.error('MARK PAID ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

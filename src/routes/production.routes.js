@@ -7,13 +7,13 @@ const {
 } = require('../controllers/production.controller');
 const { authMiddleware, ownerOnly } = require('../middleware/auth');
 
-// ✅ GET /api/production/daily/2025-01-01?category=production
+// GET /api/production/daily/:date?workType=Loader
 router.get('/daily/:date', authMiddleware, ownerOnly, getDailyProduction);
 
-// ✅ POST /api/production/daily/2025-01-01
+// POST /api/production/daily/:date?workType=Loader
 router.post('/daily/:date', authMiddleware, ownerOnly, saveProduction);
 
-// OPTIONAL: Keep existing patch route
+// Optional Patch
 router.patch('/:id/pay', authMiddleware, ownerOnly, markPaid);
 
 module.exports = router;
