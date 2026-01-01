@@ -7,41 +7,34 @@ const productionEntrySchema = new mongoose.Schema(
       ref: 'Labour',
       required: true,
     },
-    type: {
-      type: String,
-      enum: ['moulder', 'loader'],
-      required: true,
-    },
     date: {
       type: String, // YYYY-MM-DD
       required: true,
     },
-    quantity: {
-      type: Number, // bricks count
-      required: true,
+    // Useful to separate Moulder vs Loader data
+    type: {
+      type: String,
+      enum: ['moulder', 'loader', 'production'], 
+      default: 'production',
     },
-    ratePerThousand: {
+    // 🧱 Renamed to match Frontend
+    brickCount: {
       type: Number,
-      required: true,
+      default: 0,
     },
-    totalAmount: {
+    // 💰 Renamed to match Frontend
+    wage: {
       type: Number,
-      required: true,
-    },
-    paid: {
-      type: Boolean,
-      default: false,
+      default: 0,
     },
   },
   { timestamps: true }
 );
 
+// Ensure one record per worker per day per type
 productionEntrySchema.index(
   { labourId: 1, date: 1 },
   { unique: true }
 );
 
-module.exports = mongoose.model(
-  'ProductionEntry',
-  productionEntrySchema
-);
+module.exports = mongoose.model('ProductionEntry', productionEntrySchema);
