@@ -9,14 +9,14 @@ exports.getDailyProduction = async (req, res) => {
     const { date } = req.params;
 
     /**
-     * Expected query params:
-     * ?workType=Modular | Kiln | Chamber | Loader
-     *
-     * NOTE:
-     * - All production workers have category = 'production'
-     * - workType differentiates Modular / Kiln / Chamber
+     * Expected:
+     * GET /production/daily/:date?workType=Modular|Kiln|Chamber|Loader
      */
     const { workType } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ message: 'Date is required' });
+    }
 
     // 1️⃣ Fetch ACTIVE production labourers (filtered by workType)
     const labourFilter = {
@@ -30,10 +30,15 @@ exports.getDailyProduction = async (req, res) => {
 
     const labours = await Labour.find(labourFilter).sort({ name: 1 });
 
-    // 2️⃣ Fetch existing production records for this date
-    const records = await ProductionEntry.find({ date });
+    // 2️⃣ Fetch existing production records for this date + type
+    const recordFilter = { date };
+    if (workType) {
+      recordFilter.type = workType;
+    }
 
-    // 3️⃣ Create lookup map for fast access
+    const records = await ProductionEntry.find(recordFilter);
+
+    // 3️⃣ Create lookup map (labourId → record)
     const productionMap = {};
     records.forEach((r) => {
       productionMap[r.labourId.toString()] = r;
@@ -43,7 +48,6 @@ exports.getDailyProduction = async (req, res) => {
     const result = labours.map((l) => {
       const record = productionMap[l._id.toString()];
 
-      // Rate per 1000 bricks (priority order)
       const rate =
         l.ratePer1000Bricks ??
         l.productionRate ??
@@ -54,9 +58,8 @@ exports.getDailyProduction = async (req, res) => {
         name: l.name,
         workType: l.workType,
 
-        rate, // required by frontend for live calculation
+        rate, // frontend calculation
 
-        // Existing data (if already saved)
         brickCount: record ? record.brickCount : 0,
         wage: record ? record.wage : 0,
       };
@@ -76,31 +79,33 @@ exports.saveProduction = async (req, res) => {
   try {
     const { date } = req.params;
     const { entries } = req.body;
-    const { workType } = req.query; // Optional, but useful
+    const { workType } = req.query;
 
     if (!date || !Array.isArray(entries)) {
       return res.status(400).json({ message: 'Invalid data' });
     }
 
-    // Prepare bulk operations
+    const type = workType || 'production';
+
     const bulkOps = entries.map((e) => ({
       updateOne: {
         filter: {
           labourId: e.labourId,
           date,
+          type, // 🔐 CRITICAL
         },
         update: {
           $set: {
             brickCount: e.brickCount,
             wage: e.wage,
-            type: workType || 'production', // moulder / kiln / chamber
+            type,
           },
         },
         upsert: true,
       },
     }));
 
-    if (bulkOps.length) {
+    if (bulkOps.length > 0) {
       await ProductionEntry.bulkWrite(bulkOps);
     }
 
@@ -117,6 +122,7 @@ exports.saveProduction = async (req, res) => {
 exports.markPaid = async (req, res) => {
   try {
     const entry = await ProductionEntry.findById(req.params.id);
+
     if (!entry) {
       return res.status(404).json({ message: 'Entry not found' });
     }

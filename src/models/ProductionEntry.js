@@ -7,33 +7,54 @@ const productionEntrySchema = new mongoose.Schema(
       ref: 'Labour',
       required: true,
     },
+
     date: {
       type: String, // YYYY-MM-DD
       required: true,
     },
-    // Useful to separate Moulder vs Loader data
+
+    /**
+     * Production type
+     * Matches Labour.workType
+     */
     type: {
       type: String,
-      enum: ['moulder', 'loader', 'production'], 
-      default: 'production',
+      enum: ['Modular', 'Kiln', 'Chamber', 'Loader'],
+      required: true,
     },
-    // 🧱 Renamed to match Frontend
+
+    // 🧱 Total bricks produced
     brickCount: {
       type: Number,
       default: 0,
+      min: 0,
     },
-    // 💰 Renamed to match Frontend
+
+    // 💰 Calculated wage
     wage: {
       type: Number,
       default: 0,
+      min: 0,
+    },
+
+    // 💳 Payment status (future-proof)
+    paid: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }
 );
 
-// Ensure one record per worker per day per type
+/**
+ * 🔐 CRITICAL UNIQUE INDEX
+ * Ensures:
+ * - One labour
+ * - One date
+ * - One production type
+ */
 productionEntrySchema.index(
-  { labourId: 1, date: 1 },
+  { labourId: 1, date: 1, type: 1 },
   { unique: true }
 );
 
