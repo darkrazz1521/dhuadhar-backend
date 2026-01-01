@@ -7,49 +7,64 @@ const ProductionEntry = require('../models/ProductionEntry');
 exports.getDailyProduction = async (req, res) => {
   try {
     const { date } = req.params;
-    // Frontend sends ?category=production (or 'moulder', 'loader')
-    const category = req.query.category || 'production'; 
 
-    // 1️⃣ Get Active Labourers for this category
-    // We map frontend 'production' category to database 'workType' or 'category'
-    // If you have specific workTypes like 'Moulder', active filter handles it.
-    const labours = await Labour.find({
+    /**
+     * Expected query params:
+     * ?workType=Modular | Kiln | Chamber | Loader
+     *
+     * NOTE:
+     * - All production workers have category = 'production'
+     * - workType differentiates Modular / Kiln / Chamber
+     */
+    const { workType } = req.query;
+
+    // 1️⃣ Fetch ACTIVE production labourers (filtered by workType)
+    const labourFilter = {
       isActive: true,
-      // If you want to be specific: category: 'production'
-    }).sort({ name: 1 });
+      category: 'production',
+    };
 
-    // 2️⃣ Get Existing Production Data for this Date
+    if (workType) {
+      labourFilter.workType = workType;
+    }
+
+    const labours = await Labour.find(labourFilter).sort({ name: 1 });
+
+    // 2️⃣ Fetch existing production records for this date
     const records = await ProductionEntry.find({ date });
 
-    // Create a map for quick lookup
+    // 3️⃣ Create lookup map for fast access
     const productionMap = {};
     records.forEach((r) => {
       productionMap[r.labourId.toString()] = r;
     });
 
-    // 3️⃣ Merge Data
+    // 4️⃣ Merge labour + production data
     const result = labours.map((l) => {
       const record = productionMap[l._id.toString()];
 
-      // Determine the rate to send to frontend
-      // Prioritize specific rate per 1000 bricks, else fallback to generic productionRate
-      const currentRate = l.ratePer1000Bricks || l.productionRate || 0;
+      // Rate per 1000 bricks (priority order)
+      const rate =
+        l.ratePer1000Bricks ??
+        l.productionRate ??
+        0;
 
       return {
         labourId: l._id,
         name: l.name,
         workType: l.workType,
-        rate: currentRate, // ⚡ Important: Frontend needs this for live calculation
 
-        // Existing Data (if any)
+        rate, // required by frontend for live calculation
+
+        // Existing data (if already saved)
         brickCount: record ? record.brickCount : 0,
         wage: record ? record.wage : 0,
       };
     });
 
     res.json(result);
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error('GET DAILY PRODUCTION ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -60,51 +75,58 @@ exports.getDailyProduction = async (req, res) => {
 exports.saveProduction = async (req, res) => {
   try {
     const { date } = req.params;
-    const { entries } = req.body; // [{ labourId, brickCount, wage }]
+    const { entries } = req.body;
+    const { workType } = req.query; // Optional, but useful
 
-    if (!date || !entries || !Array.isArray(entries)) {
+    if (!date || !Array.isArray(entries)) {
       return res.status(400).json({ message: 'Invalid data' });
     }
 
-    // Prepare Bulk Operations
-    // We explicitly set type: 'production' (or based on logic) to keep data clean
+    // Prepare bulk operations
     const bulkOps = entries.map((e) => ({
       updateOne: {
-        filter: { labourId: e.labourId, date: date },
+        filter: {
+          labourId: e.labourId,
+          date,
+        },
         update: {
           $set: {
             brickCount: e.brickCount,
             wage: e.wage,
-            type: 'production', // Standardize type
+            type: workType || 'production', // moulder / kiln / chamber
           },
         },
         upsert: true,
       },
     }));
 
-    if (bulkOps.length > 0) {
+    if (bulkOps.length) {
       await ProductionEntry.bulkWrite(bulkOps);
     }
 
     res.json({ message: 'Production saved successfully' });
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error('SAVE PRODUCTION ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 // --------------------------------------------------
-// MARK PAID (Optional - Keep if you use it)
+// MARK PAID (OPTIONAL)
 // --------------------------------------------------
 exports.markPaid = async (req, res) => {
   try {
     const entry = await ProductionEntry.findById(req.params.id);
-    if (entry) {
-      entry.paid = true;
-      await entry.save();
+    if (!entry) {
+      return res.status(404).json({ message: 'Entry not found' });
     }
+
+    entry.paid = true;
+    await entry.save();
+
     res.json(entry);
-  } catch (e) {
+  } catch (error) {
+    console.error('MARK PAID ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
