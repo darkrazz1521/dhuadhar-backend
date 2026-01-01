@@ -13,6 +13,23 @@ const labourSchema = new mongoose.Schema(
       unique: true, // ✅ TC-LAB-01
     },
 
+    // ───────────── LOCATION DETAILS (NEW) ─────────────
+    area: {
+      type: String,
+      default: '', // Village / Area
+    },
+
+    city: {
+      type: String,
+      default: '', // City / Tehsil
+    },
+
+    address: {
+      type: String,
+      default: '', // Full Address
+    },
+
+    // ───────────── CATEGORY & WORK ─────────────
     // DAILY / SALARY / PRODUCTION
     category: {
       type: String,
@@ -26,6 +43,7 @@ const labourSchema = new mongoose.Schema(
       required: true,
     },
 
+    // ───────────── PAYMENT ─────────────
     // Payment fields (only one used depending on category)
     dailyRate: {
       type: Number,

@@ -25,6 +25,10 @@ exports.createLabour = async (req, res) => {
       dailyRate,
       monthlySalary,
       productionRate,
+      ratePer1000Bricks, // ✅ Handle alias from Flutter
+      area,
+      city,
+      address,
     } = req.body;
 
     if (!name || !mobile || !category || !workType) {
@@ -44,9 +48,15 @@ exports.createLabour = async (req, res) => {
       mobile,
       category,
       workType,
+      // 👇 Save location fields (Default to empty string if missing)
+      area: area || '',
+      city: city || '',
+      address: address || '',
     };
 
-    // Payment validation
+    // ───────────── Payment Validation ─────────────
+
+    // 1. DAILY
     if (category === 'daily') {
       if (!dailyRate)
         return res
@@ -56,6 +66,7 @@ exports.createLabour = async (req, res) => {
       labour.dailyRate = dailyRate;
     }
 
+    // 2. SALARY
     if (category === 'salary') {
       if (!monthlySalary)
         return res
@@ -65,13 +76,17 @@ exports.createLabour = async (req, res) => {
       labour.monthlySalary = monthlySalary;
     }
 
+    // 3. PRODUCTION (Kiln, Chamber, Modular)
     if (category === 'production') {
-      if (!productionRate)
+      // ✅ Check both keys: 'productionRate' OR 'ratePer1000Bricks'
+      const rate = productionRate || ratePer1000Bricks;
+
+      if (!rate)
         return res
           .status(400)
           .json({ message: 'Production rate required' });
 
-      labour.productionRate = productionRate;
+      labour.productionRate = rate;
     }
 
     const saved = await Labour.create(labour);
@@ -117,4 +132,3 @@ exports.getDrivers = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
