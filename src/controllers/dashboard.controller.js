@@ -1,40 +1,48 @@
 const Credit = require('../models/Credit');
-const Advance = require('../models/Advance');
-const LabourPayment = require('../models/LabourPayment');
+const Advance = require('../models/Advance'); // Sales Advances (Orders)
+const Payment = require('../models/Payment'); // ✅ NEW Payment Model
 const Labour = require('../models/Labour');
 
 exports.getDashboardSummary = async (req, res) => {
   try {
-    // CREDIT DUE
+    /* ---------------- 1. CREDIT DUE (Total Outstanding) ---------------- */
     const creditAgg = await Credit.aggregate([
       { $group: { _id: null, totalDue: { $sum: '$totalDue' } } },
     ]);
 
-    // PENDING ADVANCES
+    /* ---------------- 2. PENDING ORDER ADVANCES ---------------- */
+    // Counts sales advances not yet delivered
     const pendingAdvances = await Advance.countDocuments({
       status: { $ne: 'delivered' },
     });
 
-    // SALARY PENDING COUNT
-    const month = new Date().toISOString().substring(0, 7);
+    /* ---------------- 3. SALARY PENDING COUNT (This Month) ---------------- */
+    const today = new Date().toISOString();
+    const currentMonth = today.substring(0, 7); // YYYY-MM
 
+    // A. Get all workers who are supposed to be paid monthly
+    // (Drivers, Cooks, Munshis)
     const salaryLabours = await Labour.find({
-      type: { $in: ['munshi', 'driver', 'cook'] },
+      category: 'salary', // ✅ Updated to use 'category' field
       isActive: true,
     });
 
-    const payments = await LabourPayment.aggregate([
-      { $match: { month } },
-      { $group: { _id: '$labourId', paid: { $sum: '$amount' } } },
-    ]);
+    // B. Get all payments made this month
+    const paymentsThisMonth = await Payment.find({
+      paymentDate: { $regex: `^${currentMonth}` }
+    }).select('labourId');
 
-    const paidMap = {};
-    payments.forEach(p => (paidMap[p._id] = p.paid));
+    // Create a Set of IDs who have been paid
+    const paidWorkerIds = new Set(
+      paymentsThisMonth.map(p => p.labourId.toString())
+    );
 
+    // C. Count who hasn't been paid yet
     let salaryPendingCount = 0;
-    salaryLabours.forEach(l => {
-      const paid = paidMap[l._id] || 0;
-      if ((l.monthlySalary || 0) > paid) salaryPendingCount++;
+    salaryLabours.forEach((worker) => {
+      if (!paidWorkerIds.has(worker._id.toString())) {
+        salaryPendingCount++;
+      }
     });
 
     res.json({
@@ -43,6 +51,7 @@ exports.getDashboardSummary = async (req, res) => {
       salaryPendingCount,
     });
   } catch (e) {
+    console.error('DASHBOARD ERROR:', e);
     res.status(500).json({ message: 'Server error' });
   }
 };
