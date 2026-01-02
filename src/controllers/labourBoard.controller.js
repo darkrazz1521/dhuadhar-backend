@@ -1,50 +1,60 @@
 const Labour = require('../models/Labour');
 const LabourAttendance = require('../models/LabourAttendance');
-const LabourPayment = require('../models/LabourPayment');
+const Payment = require('../models/Payment'); // ✅ NEW Model
+const ProductionEntry = require('../models/ProductionEntry'); // ✅ Needed for wages
 
 /**
  * --------------------------------------------------
  * LABOUR BOARD SUMMARY (OWNER VIEW)
  * --------------------------------------------------
- * Covers:
- * - Total active labour
- * - Daily wages (current month)
- * - Salary expected / paid / pending
- * - Total labour cost
- * --------------------------------------------------
  */
 exports.getLabourBoard = async (req, res) => {
   try {
     /* ---------------- DATE CONTEXT ---------------- */
-    const today = new Date().toISOString().substring(0, 10); // YYYY-MM-DD
+    const today = new Date().toISOString().substring(0, 10);
     const month = today.substring(0, 7); // YYYY-MM
 
-    /* ---------------- TOTAL ACTIVE LABOUR ---------------- */
+    /* ---------------- 1. TOTAL ACTIVE LABOUR ---------------- */
     const totalLabour = await Labour.countDocuments({
       isActive: true,
     });
 
-    /* ---------------- DAILY LABOUR WAGES (MONTH) ---------------- */
-    const dailyWagesAgg = await LabourAttendance.aggregate([
-      {
-        $match: {
-          date: { $regex: `^${month}` },
-          present: true,
-        },
+    /* ---------------- 2. CALCULATE EARNINGS (Daily + Production) ---------------- */
+    
+    // A. Production Wages (Moulders, Loaders, Kiln)
+    // We sum up the 'wage' field from ProductionEntry for this month
+    const productionAgg = await ProductionEntry.aggregate([
+      { 
+        $match: { date: { $regex: `^${month}` } } 
       },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$wage' },
-        },
+      { 
+        $group: { _id: null, total: { $sum: '$wage' } } 
       },
     ]);
+    const productionWages = productionAgg[0]?.total || 0;
 
-    const dailyWages = dailyWagesAgg[0]?.total || 0;
+    // B. Daily Labour Wages (Manual Calculation)
+    // Since Attendance doesn't store 'wage', we calculate: Rate * Days
+    const dailyAttendance = await LabourAttendance.find({
+      date: { $regex: `^${month}` },
+      status: { $in: ['P', 'H'] } // Present or Half Day
+    }).populate('labourId');
 
-    /* ---------------- SALARY LABOUR (FIXED MONTHLY) ---------------- */
+    let dailyWages = 0;
+    dailyAttendance.forEach((att) => {
+      if (att.labourId && att.labourId.category === 'daily') {
+        const rate = att.labourId.dailyRate || 0;
+        const multiplier = att.status === 'H' ? 0.5 : 1.0;
+        dailyWages += (rate * multiplier);
+      }
+    });
+
+    const totalVariableWages = productionWages + dailyWages;
+
+    /* ---------------- 3. FIXED SALARY (Monthly) ---------------- */
+    // Drivers, Cooks, Munshis
     const salaryLabours = await Labour.find({
-      type: { $in: ['munshi', 'driver', 'cook'] },
+      category: 'salary', 
       isActive: true,
     });
 
@@ -53,29 +63,37 @@ exports.getLabourBoard = async (req, res) => {
       0
     );
 
-    const paidSalaryAgg = await LabourPayment.aggregate([
+    /* ---------------- 4. PAYMENTS MADE ---------------- */
+    // Using the NEW Payment model
+    const paidSalaryAgg = await Payment.aggregate([
       {
-        $match: { month },
+        $match: { paymentDate: { $regex: `^${month}` } },
       },
       {
-        $group: {
-          _id: null,
-          total: { $sum: '$amount' },
+        $group: { 
+          _id: null, 
+          // We count 'grossAmount' because that's the total value cleared (Cash + Advance)
+          total: { $sum: '$grossAmount' } 
         },
       },
     ]);
 
     const salaryPaid = paidSalaryAgg[0]?.total || 0;
+    
+    // Simple logic: If we paid less than expected monthly cost, show pending
+    // (This is an estimate, as payments might overlap months)
     const salaryPending = Math.max(expectedSalary - salaryPaid, 0);
 
-    /* ---------------- TOTAL LABOUR COST ---------------- */
-    const totalLabourCost = dailyWages + expectedSalary;
+    /* ---------------- 5. TOTAL MONTHLY LIABILITY ---------------- */
+    // Variable Earnings (Real work done) + Fixed Salary (Expected)
+    const totalLabourCost = totalVariableWages + expectedSalary;
 
     /* ---------------- RESPONSE ---------------- */
     res.json({
       totalLabour,
 
-      dailyWages,
+      // Renamed to 'wages' for clarity, covers Daily + Production
+      dailyWages: totalVariableWages,
 
       salary: {
         expected: expectedSalary,
