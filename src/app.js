@@ -21,6 +21,9 @@ const dashboardRoutes = require('./routes/dashboard.routes');
 // ... other routes
 const labourAdvanceRoutes = require('./routes/labourAdvance.routes');
 const financeRoutes = require('./routes/finance.routes');
+const labourProfileRoutes =
+  require('./routes/labourProfile.routes');
+
 
 
 
@@ -65,6 +68,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/customers', require('./routes/customer.routes'));
 app.use('/api/labour-advance', labourAdvanceRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api', labourProfileRoutes);
 
 
 // health check
