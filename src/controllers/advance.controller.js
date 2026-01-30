@@ -8,19 +8,26 @@ const Credit = require('../models/Credit');
 -------------------------------------------------- */
 exports.createAdvance = async (req, res) => {
   try {
-    const { customerId, category, quantity, advance } = req.body;
+    const { customerId, category, quantity, advance, rate: customRate } = req.body;
 
     if (!customerId || !category || !quantity || advance == null) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    const price = await Price.findOne({ category });
-    if (!price) {
-      return res.status(400).json({ message: 'Price not set by owner' });
-    }
+    let rate;
 
-    const rate = price.rate;
-    const total = rate * quantity;
+if (customRate && customRate > 0) {
+  rate = customRate; // ✅ use frontend rate
+} else {
+  const price = await Price.findOne({ category });
+  if (!price) {
+    return res.status(400).json({ message: 'Price not set by owner' });
+  }
+  rate = price.rate;
+}
+
+const total = rate * quantity;
+
     
     // Initial Debt Calculation
     const remaining = Math.max(total - advance, 0);
