@@ -1,8 +1,8 @@
-const Sale = require('../models/Sale');
-const Customer = require('../models/Customer');
-const Credit = require('../models/Credit');
-const Price = require('../models/Price');
-const SalePayment = require('../models/SalePayment');
+const Sale = require("../models/Sale");
+const Customer = require("../models/Customer");
+const Credit = require("../models/Credit");
+const Price = require("../models/Price");
+const SalePayment = require("../models/SalePayment");
 
 /* -------------------------------------------------------
  * CREATE SALE (customerId based – FINAL)
@@ -10,18 +10,18 @@ const SalePayment = require('../models/SalePayment');
 exports.createSale = async (req, res) => {
   try {
     const {
-  customerId,
-  customerName,
-  category,
-  quantity,
-  paid,
-  transport,
-  driver,
-} = req.body;
-
+      customerId,
+      customerName,
+      category,
+      quantity,
+      paid,
+      rate: customRate,
+      transport,
+      driver,
+    } = req.body;
 
     if (!category || !quantity) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      return res.status(400).json({ message: "Missing required fields" });
     }
 
     /* ---------------- CUSTOMER RESOLUTION ---------------- */
@@ -31,7 +31,7 @@ exports.createSale = async (req, res) => {
     if (customerId) {
       customer = await Customer.findById(customerId);
       if (!customer) {
-        return res.status(400).json({ message: 'Invalid customer' });
+        return res.status(400).json({ message: "Invalid customer" });
       }
     }
     // ⚠️ Backward compatibility
@@ -41,37 +41,44 @@ exports.createSale = async (req, res) => {
         customer = await Customer.create({ name: customerName });
       }
     } else {
-      return res.status(400).json({ message: 'Customer required' });
+      return res.status(400).json({ message: "Customer required" });
     }
 
     /* ---------------- PRICE ---------------- */
-    const price = await Price.findOne({ category });
-    if (!price) {
-      return res.status(400).json({
-        message: 'Price not set for category',
-      });
+    let rate;
+
+    // ✅ Use custom rate if provided (from frontend)
+    if (customRate && customRate > 0) {
+      rate = customRate;
+    } else {
+      // fallback to default price
+      const price = await Price.findOne({ category });
+      if (!price) {
+        return res.status(400).json({
+          message: "Price not set for category",
+        });
+      }
+      rate = price.rate;
     }
 
-    const rate = price.rate;
     const total = rate * quantity;
     const paidAmount = paid || 0;
     const due = Math.max(total - paidAmount, 0);
 
     /* ---------------- CREATE SALE ---------------- */
     const sale = await Sale.create({
-  customerId: customer._id,
-  category,
-  rate,
-  quantity,
-  total,
-  paid: paidAmount,
-  due,
+      customerId: customer._id,
+      category,
+      rate,
+      quantity,
+      total,
+      paid: paidAmount,
+      due,
 
-  // ✅ NEW FIELDS
-  transport: transport || null,
-  driver: driver || null,
-});
-
+      // ✅ NEW FIELDS
+      transport: transport || null,
+      driver: driver || null,
+    });
 
     /* ---------------- ADVANCE PAYMENT (SALE-LEVEL) ---------------- */
     if (paidAmount > 0) {
@@ -101,12 +108,12 @@ exports.createSale = async (req, res) => {
     }
 
     res.status(201).json({
-      message: 'Sale created successfully',
+      message: "Sale created successfully",
       saleId: sale._id,
     });
   } catch (error) {
-    console.error('SALE ERROR:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("SALE ERROR:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -119,12 +126,12 @@ exports.getSalesByCustomer = async (req, res) => {
 
     const sales = await Sale.find({ customerId })
       .sort({ createdAt: -1 })
-      .select('createdAt category quantity total paid due');
+      .select("createdAt category quantity total paid due");
 
     res.json(sales);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -136,16 +143,14 @@ exports.getSaleDetail = async (req, res) => {
     const { saleId } = req.params;
 
     const sale = await Sale.findById(saleId)
-  .populate('customerId', 'name mobile address')
-  .populate('driver', 'name mobile');
-
+      .populate("customerId", "name mobile address")
+      .populate("driver", "name mobile");
 
     if (!sale) {
-      return res.status(404).json({ message: 'Sale not found' });
+      return res.status(404).json({ message: "Sale not found" });
     }
 
-    const payments = await SalePayment.find({ saleId })
-      .sort({ createdAt: -1 });
+    const payments = await SalePayment.find({ saleId }).sort({ createdAt: -1 });
 
     res.json({
       sale,
@@ -153,7 +158,7 @@ exports.getSaleDetail = async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -170,12 +175,12 @@ exports.getTodaySales = async (req, res) => {
 
     const sales = await Sale.find({
       createdAt: { $gte: start, $lte: end },
-    }).populate('customerId', 'name mobile address');
+    }).populate("customerId", "name mobile address");
 
     res.json(sales);
   } catch (error) {
-    console.error('GET TODAY SALES ERROR:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("GET TODAY SALES ERROR:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -188,17 +193,17 @@ exports.paySale = async (req, res) => {
     const { amount } = req.body;
 
     if (!amount || amount <= 0) {
-      return res.status(400).json({ message: 'Invalid amount' });
+      return res.status(400).json({ message: "Invalid amount" });
     }
 
     const sale = await Sale.findById(saleId);
 
     if (!sale) {
-      return res.status(404).json({ message: 'Sale not found' });
+      return res.status(404).json({ message: "Sale not found" });
     }
 
     if (sale.due <= 0) {
-      return res.status(400).json({ message: 'No due on this sale' });
+      return res.status(400).json({ message: "No due on this sale" });
     }
 
     const payAmount = Math.min(amount, sale.due);
@@ -227,12 +232,11 @@ exports.paySale = async (req, res) => {
     }
 
     res.json({
-      message: 'Payment recorded successfully',
+      message: "Payment recorded successfully",
       sale,
     });
   } catch (error) {
-    console.error('PAY SALE ERROR:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("PAY SALE ERROR:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
-
